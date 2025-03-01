@@ -32,6 +32,6 @@ jobs:
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "Daily Research Papers Report"
           body: "Attached is today's research papers summary."
-          to: "your-email@gmail.com"
+          to: "mhatami@sc.edu"
           from: "GitHub Actions <your-email@gmail.com>"
           attachments: output.txt
