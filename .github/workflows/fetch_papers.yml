@@ -2,7 +2,7 @@ name: Fetch Papers & Email Results
 
 on:
   schedule:
-    - cron: "0 12 * * *"  # Runs every day at 12:00 UTC
+    - cron: "0 12 * * *"  # Runs daily at 12:00 UTC
   workflow_dispatch:  # Allows manual trigger
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
         run: pip install arxiv
 
       - name: Run script and save output
-        run: python fetch_papers.py > output.txt  # Saves output to a file
+        run: python fetch_papers.py > output.txt
 
       - name: Send Email
         uses: dawidd6/action-send-mail@v3
@@ -32,6 +32,6 @@ jobs:
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "Daily Research Papers Report"
           body: "Attached is today's research papers summary."
-          to: "mhatami@sc.edu"
-          from: "GitHub Actions <your-email@example.com>"
+          to: "your-email@gmail.com"
+          from: "GitHub Actions <your-email@gmail.com>"
           attachments: output.txt
