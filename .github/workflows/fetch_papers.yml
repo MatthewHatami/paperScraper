@@ -1,4 +1,4 @@
-name: Fetch Papers Daily
+name: Fetch Papers & Email Results
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:  # Allows manual trigger
 
 jobs:
-  run_script:
+  fetch_and_email:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -18,7 +18,20 @@ jobs:
           python-version: "3.9"
 
       - name: Install dependencies
-        run: pip install requests arxiv
+        run: pip install arxiv
 
-      - name: Run script
-        run: python fetch_papers.py  # Replace with your script filename
+      - name: Run script and save output
+        run: python fetch_papers.py > output.txt  # Saves output to a file
+
+      - name: Send Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Daily Research Papers Report"
+          body: "Attached is today's research papers summary."
+          to: "mhatami@sc.edu"
+          from: "GitHub Actions <your-email@example.com>"
+          attachments: output.txt
