@@ -1,23 +1,19 @@
 import arxiv
 import requests
 import os
+import fitz  # PyMuPDF for PDF text extraction
 
-# Load Gemini API Key from environment variable or GitHub Secret
-GEMINI_API_KEY = os.getenv(
-    "GEMINI_API_KEY", "yAIzaSyD593mVhnhzb4A36CQriDVF1QL7oeBW10Y")
+# Load Gemini API Key from GitHub Secrets or Environment Variable
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "your-gemini-api-key")
 
 
 def fetch_arxiv_papers(keywords, max_results=5, operator="AND"):
     """
     Fetches papers from arXiv using multiple keywords.
-    
-    :param keywords: List of keywords to search for.
-    :param max_results: Maximum number of results.
-    :param operator: "AND" (all keywords must appear) or "OR" (any keyword can appear).
-    :return: List of paper dictionaries.
     """
-    query = f" {operator} ".join([f'("{kw}")' for kw in keywords])
+    query = f" {operator} ".join([f'(\"{kw}\")' for kw in keywords])
 
+    client = arxiv.Client()
     search = arxiv.Search(
         query=query,
         max_results=max_results,
@@ -25,24 +21,58 @@ def fetch_arxiv_papers(keywords, max_results=5, operator="AND"):
     )
 
     papers = []
-    for result in search.results():
+    for result in client.results(search):
+        pdf_url = result.pdf_url  # Get the full paper PDF link
+
+        # Extract full text from the PDF
+        full_text = extract_pdf_text(pdf_url)
+
         papers.append({
             "title": result.title,
             "authors": ", ".join([a.name for a in result.authors]),
             "published_date": result.published.strftime("%Y-%m-%d"),
-            "summary": result.summary,  # Original abstract from arXiv
-            "pdf_url": result.pdf_url
+            "summary": result.summary,  # Original abstract
+            "pdf_url": pdf_url,
+            "full_text": full_text  # Full extracted text
         })
 
     return papers
 
 
-def gemini_summarize(title, abstract):
+def extract_pdf_text(pdf_url):
+    """
+    Downloads and extracts text from a given PDF URL.
+    """
+    response = requests.get(pdf_url)
+    if response.status_code != 200:
+        print(f"❌ ERROR: Could not download PDF: {pdf_url}")
+        return "Full text unavailable."
+
+    # Save the PDF temporarily
+    pdf_path = "temp_paper.pdf"
+    with open(pdf_path, "wb") as f:
+        f.write(response.content)
+
+    # Extract text using PyMuPDF
+    try:
+        doc = fitz.open(pdf_path)
+        full_text = ""
+        for page in doc:
+            full_text += page.get_text("text") + "\n"
+        doc.close()
+    except Exception as e:
+        print(f"❌ ERROR: Could not extract text from PDF: {e}")
+        return "Full text extraction failed."
+
+    return full_text
+
+
+def gemini_summarize(title, full_text):
     """
     Uses Gemini API to summarize a research paper with a structured response.
     """
     if not GEMINI_API_KEY or GEMINI_API_KEY == "your-gemini-api-key":
-        print("❌ ERROR: Gemini API Key is missing. Set GEMINI_API_KEY as an environment variable or GitHub Secret.")
+        print("❌ ERROR: Gemini API Key is missing.")
         return "Summary unavailable (API key missing)."
 
     # Replace with actual Gemini API URL
@@ -55,18 +85,17 @@ def gemini_summarize(title, abstract):
 
     # Custom prompt to structure the summary
     prompt = f"""
-    You are an AI assistant that summarizes research papers in a structured format.
-    Given the title and abstract of a paper, provide a summary with the following sections:
+    You are an AI assistant summarizing research papers. Given the title and full text, provide a structured summary:
     
     - **Novelty**: Describe what is new or unique about this research.
-    - **Methodology**: Briefly explain the approach and methods used.
-    - **Data**: Describe the datasets or sources of data used in the study.
-    - **Conclusion**: Summarize the main findings and contributions of the paper.
-    
+    - **Methodology**: Explain the approach and methods used.
+    - **Data**: Describe the datasets or sources of data used.
+    - **Conclusion**: Summarize the main findings and contributions.
+
     **Title**: {title}
-    **Abstract**: {abstract}
-    
-    Please return the response in a structured format using bullet points for each section.
+    **Full Text**: {full_text[:8000]}  # Truncate to avoid exceeding API limits
+
+    Please return the response in a structured format with bullet points.
     """
 
     payload = {"text": prompt}
@@ -81,20 +110,19 @@ def gemini_summarize(title, abstract):
     data = response.json()
     return data.get("summary", "No summary provided by Gemini.")
 
-# Example Usage: Provide a List of Keywords
-keywords = ["extreme event", "compound risk", "compound hazard", "floods", "droughts", "heatwaves", "wildfires", "climate extremes", "hydrological extremes",
-            "natural disasters", "flood forecasting", "drought indicators", "water resource management", "precipitation extremes", "flood risk", "drought risk",
-            "hazard mitigation", "disaster resilience", "hydroclimatic extremes", "climate variability", "climate change adaptation", "extreme weather events", "compound climate extremes", "multi-hazard risk assessment",
-            "extreme weather events"]
+
+# Example Usage
+keywords = ["floods", "droughts", "climate extremes", "disaster resilience"]
 
 # Fetch papers from arXiv
-papers = fetch_arxiv_papers(keywords, max_results=10, operator="OR")
+papers = fetch_arxiv_papers(keywords, max_results=5, operator="OR")
 
-# Summarize each paper using Gemini API
+# Summarize each paper using the full text
 for paper in papers:
-    paper["gemini_summary"] = gemini_summarize(paper["summary"])
+    paper["gemini_summary"] = gemini_summarize(
+        paper["title"], paper["full_text"])  # ✅ Now using full text
 
-# Print Results with Gemini Summary
+# Print Results
 for p in papers:
     print(f"📌 Title: {p['title']}")
     print(f"👨‍💻 Authors: {p['authors']}")
