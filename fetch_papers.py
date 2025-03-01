@@ -18,14 +18,16 @@ def fetch_arxiv_papers(keywords, max_results=5, operator="AND"):
     """
     query = f" {operator} ".join([f'("{kw}")' for kw in keywords])
 
+    client = arxiv.Client()
     search = arxiv.Search(
         query=query,
         max_results=max_results,
         sort_by=arxiv.SortCriterion.SubmittedDate
     )
-
     papers = []
-    for result in search.results():
+    for result in client.results(search):
+
+
         papers.append({
             "title": result.title,
             "authors": ", ".join([a.name for a in result.authors]),
