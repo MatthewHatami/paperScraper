@@ -101,7 +101,7 @@ if __name__ == "__main__":
     keywords = ["floods", "droughts",
                 "climate extremes", "disaster resilience"]
 
-    papers = fetch_arxiv_papers(keywords, max_results=2, operator="OR")
+    papers = fetch_arxiv_papers(keywords, max_results=5, operator="OR")
 
     for paper in papers:
         paper["gemini_summary"] = gemini_summarize(
