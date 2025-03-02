@@ -19,9 +19,12 @@ jobs:
 
       - name: Install dependencies
         run: pip install arxiv requests pymupdf google-auth google-auth-oauthlib google-auth-httplib2
-
+        
       - name: Run script and save output
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python fetch_papers.py > output.txt
+
 
       - name: Send Email
         uses: dawidd6/action-send-mail@v3

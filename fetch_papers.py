@@ -6,6 +6,9 @@ import fitz  # PyMuPDF for PDF text extraction
 # ✅ Replace OAuth with an API Key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+if not GEMINI_API_KEY:
+    print("❌ ERROR: Gemini API Key is missing from environment variables.")
+    exit(1)
 
 def fetch_arxiv_papers(keywords, max_results=5, operator="AND"):
     """ Fetches papers from arXiv using multiple keywords. """
