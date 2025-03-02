@@ -17,7 +17,6 @@ def fetch_arxiv_papers(keywords, max_results=5, operator="AND"):
         max_results=max_results,
         sort_by=arxiv.SortCriterion.SubmittedDate
     )
-
     papers = []
     for result in client.results(search):
         pdf_url = result.pdf_url
