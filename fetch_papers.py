@@ -3,14 +3,12 @@ import requests
 import os
 import fitz  # PyMuPDF for PDF text extraction
 
-# Load Gemini API Key from GitHub Secrets or Environment Variable
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "your-gemini-api-key")
+# ✅ Replace OAuth with an API Key
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 
 def fetch_arxiv_papers(keywords, max_results=5, operator="AND"):
-    """
-    Fetches papers from arXiv using multiple keywords.
-    """
+    """ Fetches papers from arXiv using multiple keywords. """
     query = f" {operator} ".join([f'(\"{kw}\")' for kw in keywords])
 
     client = arxiv.Client()
@@ -22,43 +20,35 @@ def fetch_arxiv_papers(keywords, max_results=5, operator="AND"):
 
     papers = []
     for result in client.results(search):
-        pdf_url = result.pdf_url  # Get the full paper PDF link
-
-        # Extract full text from the PDF
+        pdf_url = result.pdf_url
         full_text = extract_pdf_text(pdf_url)
 
         papers.append({
             "title": result.title,
             "authors": ", ".join([a.name for a in result.authors]),
             "published_date": result.published.strftime("%Y-%m-%d"),
-            "summary": result.summary,  # Original abstract
+            "summary": result.summary,
             "pdf_url": pdf_url,
-            "full_text": full_text  # Full extracted text
+            "full_text": full_text
         })
 
     return papers
 
 
 def extract_pdf_text(pdf_url):
-    """
-    Downloads and extracts text from a given PDF URL.
-    """
+    """ Downloads and extracts text from a given PDF URL. """
     response = requests.get(pdf_url)
     if response.status_code != 200:
         print(f"❌ ERROR: Could not download PDF: {pdf_url}")
         return "Full text unavailable."
 
-    # Save the PDF temporarily
     pdf_path = "temp_paper.pdf"
     with open(pdf_path, "wb") as f:
         f.write(response.content)
 
-    # Extract text using PyMuPDF
     try:
         doc = fitz.open(pdf_path)
-        full_text = ""
-        for page in doc:
-            full_text += page.get_text("text") + "\n"
+        full_text = "\n".join(page.get_text("text") for page in doc)
         doc.close()
     except Exception as e:
         print(f"❌ ERROR: Could not extract text from PDF: {e}")
@@ -68,25 +58,18 @@ def extract_pdf_text(pdf_url):
 
 
 def gemini_summarize(title, full_text):
-    """
-    Uses Gemini API to summarize a research paper with a structured response.
-    """
-    if not GEMINI_API_KEY or GEMINI_API_KEY == "your-gemini-api-key":
+    """ Uses Gemini API to summarize a research paper with a structured response. """
+    if not GEMINI_API_KEY:
         print("❌ ERROR: Gemini API Key is missing.")
         return "Summary unavailable (API key missing)."
 
-    # Replace with actual Gemini API URL
-    gemini_url = "https://api.gemini.example.com/generate-text"
+    gemini_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-002:generateContent?key={GEMINI_API_KEY}"
 
-    headers = {
-        "Authorization": f"Bearer {GEMINI_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Content-Type": "application/json"}
 
-    # Custom prompt to structure the summary
     prompt = f"""
     You are an AI assistant summarizing research papers. Given the title and full text, provide a structured summary:
-    
+
     - **Novelty**: Describe what is new or unique about this research.
     - **Methodology**: Explain the approach and methods used.
     - **Data**: Describe the datasets or sources of data used.
@@ -98,7 +81,7 @@ def gemini_summarize(title, full_text):
     Please return the response in a structured format with bullet points.
     """
 
-    payload = {"text": prompt}
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
     response = requests.post(gemini_url, json=payload, headers=headers)
 
@@ -108,28 +91,27 @@ def gemini_summarize(title, full_text):
         return "Summary unavailable (API error)."
 
     data = response.json()
-    return data.get("summary", "No summary provided by Gemini.")
+    return data.get("candidates", [{}])[0].get("content", "No summary provided by Gemini.")
 
 
-# Example Usage
-keywords = ["floods", "droughts", "climate extremes", "disaster resilience"]
+# ✅ Main Script Execution
+if __name__ == "__main__":
+    keywords = ["floods", "droughts",
+                "climate extremes", "disaster resilience"]
 
-# Fetch papers from arXiv
-papers = fetch_arxiv_papers(keywords, max_results=5, operator="OR")
+    papers = fetch_arxiv_papers(keywords, max_results=2, operator="OR")
 
-# Summarize each paper using the full text
-for paper in papers:
-    paper["gemini_summary"] = gemini_summarize(
-        paper["title"], paper["full_text"])  # ✅ Now using full text
+    for paper in papers:
+        paper["gemini_summary"] = gemini_summarize(
+            paper["title"], paper["full_text"])
 
-# Print Results
-for p in papers:
-    print(f"📌 Title: {p['title']}")
-    print(f"👨‍💻 Authors: {p['authors']}")
-    print(f"📅 Published: {p['published_date']}")
-    print(f"📄 PDF Link: {p['pdf_url']}")
-    print("📝 Original Summary:")
-    print(p['summary'])
-    print("✂️ Gemini Summary:")
-    print(p.get("gemini_summary", "No summary generated"))
-    print("-" * 50)
+    for p in papers:
+        print(f"📌 Title: {p['title']}")
+        print(f"👨‍💻 Authors: {p['authors']}")
+        print(f"📅 Published: {p['published_date']}")
+        print(f"📄 PDF Link: {p['pdf_url']}")
+        print("📝 Original Summary:")
+        print(p['summary'])
+        print("✂️ Gemini Summary:")
+        print(p.get("gemini_summary", "No summary generated"))
+        print("-" * 50)

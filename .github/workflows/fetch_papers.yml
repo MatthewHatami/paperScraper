@@ -1,4 +1,4 @@
-name: Fetch Papers & Email Results
+name: Fetch Papers, Summarize with Gemini & Email Results
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:  # Allows manual trigger
 
 jobs:
-  fetch_and_email:
+  fetch_summarize_email:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -18,9 +18,12 @@ jobs:
           python-version: "3.9"
 
       - name: Install dependencies
-        run: pip install arxiv
+        run: |
+          pip install arxiv requests pymupdf google-auth google-auth-oauthlib google-auth-httplib2 google-auth-json
 
       - name: Run script and save output
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python fetch_papers.py > output.txt
 
       - name: Send Email
@@ -30,8 +33,8 @@ jobs:
           server_port: 587
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "Daily Research Papers Report"
-          body: "Attached is today's research papers summary."
+          subject: "Daily Research Papers Summary"
+          body: "Attached is today's research paper summaries generated using Gemini AI."
           to: "mhatami@sc.edu"
           from: "GitHub Actions <your-email@gmail.com>"
           attachments: output.txt
