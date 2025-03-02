@@ -98,8 +98,10 @@ def gemini_summarize(title, full_text):
 
 # ✅ Main Script Execution
 if __name__ == "__main__":
-    keywords = ["floods", "droughts",
-                "climate extremes", "disaster resilience"]
+    keywords = ["extreme event", "compound risk", "compound hazard", "floods", "droughts", "heatwaves", "wildfires", "climate extremes", "hydrological extremes",
+                "natural disasters", "flood forecasting", "drought indicators", "water resource management", "precipitation extremes", "flood risk", "drought risk",
+                "hazard mitigation", "disaster resilience", "hydroclimatic extremes", "climate variability", "climate change adaptation", "extreme weather events", "compound climate extremes", "multi-hazard risk assessment",
+                "extreme weather events"]
 
     papers = fetch_arxiv_papers(keywords, max_results=5, operator="OR")
 
