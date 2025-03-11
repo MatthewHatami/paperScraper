@@ -6,13 +6,14 @@ from datetime import datetime
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import re
+import json
 
 # --- Load Environment Variables from GitHub Secrets ---
-GEMINI_API_KEY = "AIzaSyD593mVhnhzb4A36CQriDVF1QL7oeBW10Y"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 # os.getenv("GEMINI_API_KEY")
 
 # Replace with your actual Google Doc ID
-DOCUMENT_ID = "14p892Xm1xvLIH2c1awYAYfT2_yWMYWUiKPRSo8XOcqA"
+DOCUMENT_ID = os.getenv("DOCUMENT_ID")
 
 SCOPES = [
     "https://www.googleapis.com/auth/documents",
@@ -162,6 +163,7 @@ def append_to_google_doc(papers):
                 f"AUTHORS: {p['authors']}\n"
                 f"PUBLISHED: {p['published_date']}\n"
                 f"PDF LINK: {p['pdf_url']}\n\n"
+                f"ABSTRACT:\n{p['summary']}\n\n"  # <-- Insert the abstract here
                 f"GEMINI SUMMARY:\n\n{p.get('gemini_summary', 'No summary provided.')}\n"
                 + "-" * 80 + "\n\n"
             )
@@ -204,25 +206,47 @@ def export_google_doc_to_pdf():
         return None
 
 
+def load_summarized_ids(cache_file="summarized_papers.json"):
+    """Returns a set of paper IDs we've previously summarized."""
+    if os.path.exists(cache_file):
+        with open(cache_file, "r") as f:
+            try:
+                data = json.load(f)
+                return set(data)
+            except json.JSONDecodeError:
+                return set()
+    return set()
+
+def save_summarized_ids(summarized_ids, cache_file="summarized_papers.json"):
+    """Saves the set of summarized paper IDs to a JSON file."""
+    with open(cache_file, "w") as f:
+        json.dump(list(summarized_ids), f, indent=2)
+
+
 def main():
-    keywords = ["floods", "droughts",
-                "climate extremes", "disaster resilience"]
+    summarized_ids = load_summarized_ids()
+
+    keywords = ["floods", "droughts", "climate extremes", "disaster resilience"]
     papers = fetch_arxiv_papers(keywords, max_results=3, operator="OR")
 
-    if not papers:
-        print("No new papers found.")
+    new_papers = []
+    for paper in papers:
+        paper_id = paper["pdf_url"]  # or parse from result.entry_id
+        if paper_id not in summarized_ids:
+            paper["gemini_summary"] = gemini_summarize(paper["title"], paper["full_text"])
+            new_papers.append(paper)
+            summarized_ids.add(paper_id)
+
+    if not new_papers:
+        print("No new papers to summarize.")
         return
 
-    for paper in papers:
-        paper["gemini_summary"] = gemini_summarize(
-            paper["title"], paper["full_text"])
-
-    append_to_google_doc(papers)
+    append_to_google_doc(new_papers)
     pdf_path = export_google_doc_to_pdf()
 
     # ✅ Save Output for GitHub Actions Email
     with open("output.txt", "w") as f:
-        for paper in papers:
+        for paper in new_papers:
             f.write(f"## {paper['title']}\n")
             f.write(f"**Authors:** {paper['authors']}\n")
             f.write(f"**Published:** {paper['published_date']}\n")
@@ -231,8 +255,10 @@ def main():
             f.write("---\n\n")
 
     if pdf_path:
-        # Rename for GitHub Actions
         os.rename(pdf_path, "research_summary.pdf")
+
+    # Finally, save updated list of summarized IDs
+    save_summarized_ids(summarized_ids)
 
 
 if __name__ == "__main__":

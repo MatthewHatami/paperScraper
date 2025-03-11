@@ -18,13 +18,20 @@ jobs:
           python-version: "3.9"
 
       - name: Install dependencies
-        run: pip install arxiv requests pymupdf google-auth google-auth-oauthlib google-auth-httplib2
-        
-      - name: Run script and save output
+        run: |
+          pip install arxiv \
+                     requests \
+                     pymupdf \
+                     google-auth \
+                     google-auth-oauthlib \
+                     google-auth-httplib2 \
+                     google-auth \
+                     googleapiclient
+
+      - name: Run script (Fetch & Summarize) and save output
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python fetch_papers.py > output.txt
-
 
       - name: Send Email
         uses: dawidd6/action-send-mail@v3
@@ -34,7 +41,11 @@ jobs:
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "Daily Research Papers Report"
-          body: "Attached is today's research papers summary."
+          body: |
+            Attached is today's research papers summary in text and PDF format.
+            Google Doc Link: https://docs.google.com/document/d/14p892Xm1xvLIH2c1awYAYfT2_yWMYWUiKPRSo8XOcqA/edit
           to: "mhatami@sc.edu"
           from: "GitHub Actions <your-email@gmail.com>"
-          attachments: output.txt
+          attachments: |
+            output.txt
+            research_summary.pdf
