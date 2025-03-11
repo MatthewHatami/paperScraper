@@ -26,7 +26,7 @@ jobs:
                      google-auth-oauthlib \
                      google-auth-httplib2 \
                      google-auth \
-                     googleapiclient
+                     google-api-python-client
 
       # Create the Google service account credentials locally from a base64-encoded secret
       - name: Create Google Credentials
