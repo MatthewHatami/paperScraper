@@ -28,6 +28,11 @@ jobs:
                      google-auth \
                      googleapiclient
 
+      # Create the Google service account credentials locally from a base64-encoded secret
+      - name: Create Google Credentials
+        run: |
+          echo "${{ secrets.SERVICE_ACCOUNT_JSON_B64 }}" | base64 --decode > service_account.json
+
       - name: Run script (Fetch & Summarize) and save output
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

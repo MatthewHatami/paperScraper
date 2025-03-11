@@ -22,7 +22,7 @@ SCOPES = [
 
 # Load Google API Credentials (from GitHub Secrets)
 CREDS = service_account.Credentials.from_service_account_file(
-    "gen-lang-client-0505672252-66ab127135ad.json",
+    "service_account.json",
     scopes=SCOPES
 )
 
